@@ -2,7 +2,6 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ajedrez Online</title>
     <style>
         .container {
@@ -10,9 +9,7 @@
             margin: 0 auto;
             padding: 20px;
         }
-        .title {
-            text-align: center;
-        }
+        .title { text-align: center; }
         .menu-container {
             text-align: center;
             margin: 20px 0;
@@ -35,11 +32,13 @@
         }
         .board-container {
             flex: 2;
+            position: relative;
         }
         .board {
             width: 100%;
             max-width: 600px;
             margin: 0 auto;
+            transition: opacity 0.3s;
         }
         .moves {
             flex: 1;
@@ -55,18 +54,26 @@
             opacity: 0.5;
             pointer-events: none;
         }
-        .turn-indicator {
-            padding: 10px;
-            margin: 10px 0;
-            background-color: #f0f0f0;
-            border-radius: 5px;
+        .turn-banner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 255, 255, 0.9);
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+            z-index: 100;
+            display: none;
+        }
+        .turn-banner.show {
+            display: block;
         }
         .your-turn {
-            background-color: #90EE90;
-            font-weight: bold;
+            color: green;
         }
         .opponent-turn {
-            background-color: #FFB6C1;
+            color: red;
         }
     </style>
 </head>
@@ -89,15 +96,16 @@
         </div>
 
         <div id="gameScreen" style="display: none;">
-            <div id="turnIndicator" class="turn-indicator">
+            <div id="gameInfo" class="game-info">
                 Esperando oponente...
             </div>
-
-            <div id="gameInfo" class="game-info"></div>
 
             <div class="game-container">
                 <div class="board-container">
                     <div id="board" class="board"></div>
+                    <div id="turnBanner" class="turn-banner">
+                        Esperando oponente...
+                    </div>
                 </div>
 
                 <div class="moves">
@@ -112,17 +120,19 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
     <script>
         let socket = io();
-        let board;
-        let game;
-        let playerColor;
-        let currentTurn;
+        let board = null;
+        let game = null;
+        let playerColor = null;
+        let currentTurn = 'w';
+        let gameId = null;
 
-        // Función para actualizar el indicador de turno
         function updateTurnIndicator() {
-            const turnIndicator = document.getElementById('turnIndicator');
+            const turnBanner = document.getElementById('turnBanner');
+            const boardElement = document.getElementById('board');
+
             if (!game || !playerColor) {
-                turnIndicator.textContent = 'Esperando oponente...';
-                turnIndicator.className = 'turn-indicator';
+                turnBanner.textContent = 'Esperando oponente...';
+                turnBanner.className = 'turn-banner show';
                 return;
             }
 
@@ -130,42 +140,96 @@
                                (currentTurn === 'b' && playerColor === 'b');
 
             if (isPlayerTurn) {
-                turnIndicator.textContent = '¡Es tu turno!';
-                turnIndicator.className = 'turn-indicator your-turn';
-                board.removeAttribute('class'); // Habilitar movimientos
+                turnBanner.textContent = '¡Es tu turno!';
+                turnBanner.className = 'turn-banner show your-turn';
+                boardElement.classList.remove('inactive-turn');
             } else {
-                turnIndicator.textContent = 'Turno del oponente';
-                turnIndicator.className = 'turn-indicator opponent-turn';
-                board.className = 'inactive-turn'; // Deshabilitar movimientos
+                turnBanner.textContent = 'Turno del oponente';
+                turnBanner.className = 'turn-banner show opponent-turn';
+                boardElement.classList.add('inactive-turn');
             }
+
+            // Ocultar el banner después de 2 segundos
+            setTimeout(() => {
+                turnBanner.className = 'turn-banner';
+            }, 2000);
         }
 
-        // Evento cuando se recibe actualización del juego
-        socket.on('gameUpdate', function(data) {
-            currentTurn = data.gameState.currentTurn;
-            // Actualizar el tablero con el nuevo movimiento
-            board.position(data.gameState.position);
-            // Actualizar la lista de movimientos
-            updateMovesList(data.gameState.moveHistory);
-            // Actualizar el indicador de turno
-            updateTurnIndicator();
-        });
-
-        // Función para actualizar la lista de movimientos
-        function updateMovesList(moveHistory) {
+        function updateMovesList(move) {
             const movesList = document.getElementById('movesList');
-            movesList.innerHTML = '';
-            moveHistory.forEach((move, index) => {
-                const moveElement = document.createElement('div');
-                const turnNumber = Math.floor(index / 2) + 1;
-                const isWhite = index % 2 === 0;
-                moveElement.textContent = `${turnNumber}. ${isWhite ? 'Blancas' : 'Negras'}: ${move.from} → ${move.to}`;
-                movesList.appendChild(moveElement);
-            });
+            const moveElement = document.createElement('div');
+            moveElement.textContent = `${currentTurn === 'b' ? 'Blancas' : 'Negras'}: ${move.from} → ${move.to}`;
+            movesList.appendChild(moveElement);
             movesList.scrollTop = movesList.scrollHeight;
         }
 
-        // ... resto del código JavaScript existente ...
+        socket.on('gameCreated', function(data) {
+            gameId = data.gameId;
+            playerColor = data.color;
+            document.getElementById('gameCode').textContent = gameId;
+            document.getElementById('gameCodeContainer').style.display = 'block';
+            document.getElementById('gameScreen').style.display = 'block';
+            document.getElementById('menuContainer').style.display = 'none';
+            initializeBoard();
+            updateTurnIndicator();
+        });
+
+        socket.on('gameStart', function(data) {
+            document.getElementById('gameInfo').textContent = '¡Partida iniciada!';
+            game.reset();
+            updateTurnIndicator();
+        });
+
+        socket.on('gameUpdate', function(data) {
+            currentTurn = data.gameState.currentTurn;
+            if (board && data.move) {
+                board.position(data.gameState.position);
+                updateMovesList(data.move);
+                updateTurnIndicator();
+            }
+        });
+
+        socket.on('moveError', function(message) {
+            alert(message);
+        });
+
+        function createGame() {
+            socket.emit('createGame');
+        }
+
+        function joinGame() {
+            const code = document.getElementById('gameCodeInput').value.trim();
+            if (code) {
+                gameId = code;
+                socket.emit('joinGame', code);
+                document.getElementById('gameScreen').style.display = 'block';
+                document.getElementById('menuContainer').style.display = 'none';
+                initializeBoard();
+            }
+        }
+
+        function initializeBoard() {
+            // Inicialización del tablero y configuración de eventos
+            // Aquí iría el código de inicialización de tu biblioteca de ajedrez
+            updateTurnIndicator();
+        }
+
+        function onDrop(source, target) {
+            // Validar si es el turno del jugador
+            const isPlayerTurn = (currentTurn === 'w' && playerColor === 'w') || 
+                               (currentTurn === 'b' && playerColor === 'b');
+            
+            if (!isPlayerTurn) {
+                return 'snapback';
+            }
+
+            // Emitir el movimiento al servidor
+            socket.emit('move', {
+                gameId: gameId,
+                from: source,
+                to: target
+            });
+        }
     </script>
 </body>
 </html>
