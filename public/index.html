@@ -1,79 +1,148 @@
 <!DOCTYPE html>
-<html lang="es">
+<html>
 <head>
-    <meta charset="UTF-8">
     <title>Ajedrez Online</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css">
     <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+        }
+
         .container {
+            width: 100%;
             max-width: 1200px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 10px;
         }
-        .title { text-align: center; }
-        .menu-container {
+
+        .title {
             text-align: center;
-            margin: 20px 0;
-        }
-        .game-code {
-            font-size: 24px;
-            font-weight: bold;
+            font-size: 1.5em;
             margin: 10px 0;
         }
+
         .game-info {
             text-align: center;
             margin: 10px 0;
-            font-size: 18px;
+            padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            font-size: 1.1em;
         }
+
         .game-container {
             display: flex;
-            justify-content: space-between;
-            max-width: 1000px;
+            gap: 20px;
+            align-items: flex-start;
+            justify-content: center;
             margin: 0 auto;
         }
+
         .board-container {
-            flex: 2;
-            position: relative;
+            flex: 0 0 auto;
+            max-width: 500px;
+            width: 60%;
         }
+
         .board {
             width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            transition: opacity 0.3s;
         }
+
         .moves {
-            flex: 1;
-            padding: 0 20px;
-        }
-        .moves-list {
-            height: 400px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
+            flex: 0 0 200px;
             padding: 10px;
+            background: #f5f5f5;
+            border-radius: 5px;
+            height: 100%;
+            min-height: 400px;
+            max-height: 500px;
+            overflow-y: auto;
         }
-        .inactive-turn {
-            opacity: 0.5;
-            pointer-events: none;
+
+        .moves h2 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
         }
-        .turn-banner {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(255, 255, 255, 0.9);
+
+        .moves-list {
+            font-family: monospace;
+            line-height: 1.5;
+            font-size: 1em;
+        }
+
+        .move-number {
+            color: #666;
+            margin-right: 5px;
+        }
+
+        /* Estilos para el menú inicial */
+        .menu-container {
+            text-align: center;
+            margin: 20px auto;
+            max-width: 400px;
             padding: 20px;
+            background: #f5f5f5;
             border-radius: 10px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.2);
-            z-index: 100;
-            display: none;
         }
-        .turn-banner.show {
+
+        .menu-button {
             display: block;
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1.1em;
         }
-        .your-turn {
-            color: green;
+
+        .menu-button:hover {
+            background: #45a049;
         }
-        .opponent-turn {
-            color: red;
+
+        .game-code {
+            font-size: 1.2em;
+            margin: 10px 0;
+            padding: 10px;
+            background: #fff;
+            border-radius: 5px;
+        }
+
+        .join-input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1.1em;
+        }
+
+        /* Estilos para móvil */
+        @media (max-width: 768px) {
+            .game-container {
+                flex-direction: column;
+            }
+
+            .board-container {
+                width: 100%;
+            }
+
+            .moves {
+                width: 100%;
+                min-height: 150px;
+                max-height: 200px;
+            }
         }
     </style>
 </head>
@@ -81,20 +150,20 @@
     <div class="container">
         <h1 id="tablero-de-ajedrez" class="title">Ajedrez Online</h1>
 
+        <!-- Menú inicial -->
         <div id="menuContainer" class="menu-container">
-            <button onclick="createGame()">Crear Nueva Partida</button>
-
+            <button id="createGameBtn" class="menu-button">Crear Nueva Partida</button>
             <div id="gameCodeContainer" style="display: none;">
                 <p>Comparte este código con tu oponente:</p>
                 <div id="gameCode" class="game-code"></div>
             </div>
-
             <div id="joinGameContainer">
-                <input type="text" id="gameCodeInput" placeholder="Introduce código de partida">
-                <button onclick="joinGame()">Unirse a Partida</button>
+                <input type="text" id="joinGameInput" class="join-input" placeholder="Ingresa el código de la partida">
+                <button id="joinGameBtn" class="menu-button">Unirse a Partida</button>
             </div>
         </div>
 
+        <!-- Contenedor del juego (inicialmente oculto) -->
         <div id="gameScreen" style="display: none;">
             <div id="gameInfo" class="game-info">
                 Esperando oponente...
@@ -103,11 +172,8 @@
             <div class="game-container">
                 <div class="board-container">
                     <div id="board" class="board"></div>
-                    <div id="turnBanner" class="turn-banner">
-                        Esperando oponente...
-                    </div>
                 </div>
-
+                
                 <div class="moves">
                     <h2>Movimientos</h2>
                     <div id="movesList" class="moves-list"></div>
@@ -116,118 +182,146 @@
         </div>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
     <script>
-        let socket = io();
         let board = null;
-        let game = null;
-        let playerColor = null;
-        let currentTurn = 'w';
-        let gameId = null;
+        let game = new Chess();
+        let moveCount = 1;
+        let playerColor = 'white';
+        let currentGameId = null;
+        let socket = io();
+        let canMove = false;
 
-        function updateTurnIndicator() {
-            const turnBanner = document.getElementById('turnBanner');
-            const boardElement = document.getElementById('board');
+        // Eventos del menú
+        document.getElementById('createGameBtn').addEventListener('click', () => {
+            socket.emit('createGame');
+        });
 
-            if (!game || !playerColor) {
-                turnBanner.textContent = 'Esperando oponente...';
-                turnBanner.className = 'turn-banner show';
-                return;
+        document.getElementById('joinGameBtn').addEventListener('click', () => {
+            const gameId = document.getElementById('joinGameInput').value.trim().toUpperCase();
+            if (gameId) {
+                socket.emit('joinGame', gameId);
             }
+        });
 
-            const isPlayerTurn = (currentTurn === 'w' && playerColor === 'w') || 
-                               (currentTurn === 'b' && playerColor === 'b');
+        // Eventos del Socket
+        socket.on('gameCreated', (data) => {
+            currentGameId = data.gameId;
+            playerColor = data.color;
+            document.getElementById('gameCode').textContent = data.gameId;
+            document.getElementById('gameCodeContainer').style.display = 'block';
+            startGame();
+        });
 
-            if (isPlayerTurn) {
-                turnBanner.textContent = '¡Es tu turno!';
-                turnBanner.className = 'turn-banner show your-turn';
-                boardElement.classList.remove('inactive-turn');
-            } else {
-                turnBanner.textContent = 'Turno del oponente';
-                turnBanner.className = 'turn-banner show opponent-turn';
-                boardElement.classList.add('inactive-turn');
+        socket.on('playerColor', (color) => {
+            playerColor = color;
+            startGame();
+        });
+
+        socket.on('gameStart', () => {
+            document.getElementById('gameInfo').textContent = 
+                game.turn() === 'w' ? 'Turno de las Blancas' : 'Turno de las Negras';
+            canMove = game.turn() === 'w' ? playerColor === 'white' : playerColor === 'black';
+            document.getElementById('menuContainer').style.display = 'none';
+        });
+
+        socket.on('opponentMove', (move) => {
+            game.move(move);
+            board.position(game.fen());
+            updateStatus();
+            canMove = true;
+            updateMovesList(move);
+        });
+
+        socket.on('opponentDisconnected', () => {
+            document.getElementById('gameInfo').textContent = 'Tu oponente se ha desconectado';
+            canMove = false;
+        });
+
+        socket.on('error', (message) => {
+            alert(message);
+        });
+
+        function calculateBoardSize() {
+            const container = document.querySelector('.board-container');
+            const width = Math.min(container.offsetWidth, 500);
+            return width;
+        }
+
+        function onDragStart(source, piece, position, orientation) {
+            if (!canMove) return false;
+            
+            if ((game.turn() === 'w' && piece.search(/^b/) !== -1) ||
+                (game.turn() === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
             }
-
-            // Ocultar el banner después de 2 segundos
-            setTimeout(() => {
-                turnBanner.className = 'turn-banner';
-            }, 2000);
         }
 
         function updateMovesList(move) {
             const movesList = document.getElementById('movesList');
-            const moveElement = document.createElement('div');
-            moveElement.textContent = `${currentTurn === 'b' ? 'Blancas' : 'Negras'}: ${move.from} → ${move.to}`;
-            movesList.appendChild(moveElement);
+            
+            if (game.turn() === 'w') {
+                movesList.innerHTML += `<span class="move-number">${moveCount}.</span>${move} `;
+                moveCount++;
+            } else {
+                movesList.innerHTML += `${move}<br>`;
+            }
+            
             movesList.scrollTop = movesList.scrollHeight;
         }
 
-        socket.on('gameCreated', function(data) {
-            gameId = data.gameId;
-            playerColor = data.color;
-            document.getElementById('gameCode').textContent = gameId;
-            document.getElementById('gameCodeContainer').style.display = 'block';
-            document.getElementById('gameScreen').style.display = 'block';
-            document.getElementById('menuContainer').style.display = 'none';
-            initializeBoard();
-            updateTurnIndicator();
-        });
-
-        socket.on('gameStart', function(data) {
-            document.getElementById('gameInfo').textContent = '¡Partida iniciada!';
-            game.reset();
-            updateTurnIndicator();
-        });
-
-        socket.on('gameUpdate', function(data) {
-            currentTurn = data.gameState.currentTurn;
-            if (board && data.move) {
-                board.position(data.gameState.position);
-                updateMovesList(data.move);
-                updateTurnIndicator();
-            }
-        });
-
-        socket.on('moveError', function(message) {
-            alert(message);
-        });
-
-        function createGame() {
-            socket.emit('createGame');
-        }
-
-        function joinGame() {
-            const code = document.getElementById('gameCodeInput').value.trim();
-            if (code) {
-                gameId = code;
-                socket.emit('joinGame', code);
-                document.getElementById('gameScreen').style.display = 'block';
-                document.getElementById('menuContainer').style.display = 'none';
-                initializeBoard();
-            }
-        }
-
-        function initializeBoard() {
-            // Inicialización del tablero y configuración de eventos
-            // Aquí iría el código de inicialización de tu biblioteca de ajedrez
-            updateTurnIndicator();
-        }
-
         function onDrop(source, target) {
-            // Validar si es el turno del jugador
-            const isPlayerTurn = (currentTurn === 'w' && playerColor === 'w') || 
-                               (currentTurn === 'b' && playerColor === 'b');
+            const move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q'
+            });
+
+            if (move === null) return 'snapback';
             
-            if (!isPlayerTurn) {
-                return 'snapback';
+            updateMovesList(move.san);
+            socket.emit('move', { gameId: currentGameId, move: move });
+            canMove = false;
+            updateStatus();
+        }
+
+        function updateStatus() {
+            let status = '';
+
+            if (game.in_checkmate()) {
+                status = game.turn() === 'w' ? '¡Ganan las Negras!' : '¡Ganan las Blancas!';
+            } else if (game.in_draw()) {
+                status = '¡Juego empatado!';
+            } else {
+                status = game.turn() === 'w' ? 'Turno de las Blancas' : 'Turno de las Negras';
+                if (game.in_check()) {
+                    status += ' - ¡Jaque!';
+                }
             }
 
-            // Emitir el movimiento al servidor
-            socket.emit('move', {
-                gameId: gameId,
-                from: source,
-                to: target
+            document.getElementById('gameInfo').textContent = status;
+        }
+
+        function startGame() {
+            document.getElementById('gameScreen').style.display = 'block';
+            
+            const config = {
+                draggable: true,
+                position: 'start',
+                orientation: playerColor,
+                onDragStart: onDragStart,
+                onDrop: onDrop,
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+                width: calculateBoardSize()
+            };
+            
+            board = Chessboard('board', config);
+            
+            window.addEventListener('resize', function() {
+                board.resize();
             });
         }
     </script>
