@@ -396,15 +396,7 @@ io.on('connection', (socket) => {
         });
     });
 
-    socket.on('joinGame', (gameId) => {
-        const game = activeGames.get(gameId);
-        
-        if (!game) {
-            socket.emit('error', 'Partida no encontrada');
-            return;
-        }
-
-        if (game.players.size >= 2) {
+    
 
 
 socket.on('joinGame', (gameId) => {
